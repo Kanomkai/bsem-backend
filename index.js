@@ -18,8 +18,8 @@ console.log("✅ Firebase Firestore connected successfully!");
 
 // --- 3. [แก้ไข] ตั้งค่า Credentials สำหรับ NETPIE API ---
 // (เราจะใช้ชุดนี้สำหรับโทรหา API โดยตรง)
-const NETPIE_API_KEY = "Y9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; // <-- Key ชุดใหม่จาก cURL
-const NETPIE_API_SECRET = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA";   // <-- Secret ชุดใหม่จาก cURL
+const NETPIE_API_KEY = "42e16b39-faf6-4e0f-9899-456a61d8e10f"; // <-- Key ชุดใหม่จาก cURL
+const NETPIE_API_SECRET = "AjKk5jJhALhENmhSs2ETSWaSC3R6hUuB";   // <-- Secret ชุดใหม่จาก cURL
 
 
 // --- 4. สร้าง Express App และเปิด CORS ---
