@@ -1,6 +1,5 @@
 // --- 1. Import เครื่องมือที่จำเป็น ---
 const admin = require("firebase-admin");
-const mqtt = require("mqtt"); // (ยังคงเก็บไว้เผื่ออนาคต แต่ตอนนี้ไม่ได้ใช้เชื่อมต่อ)
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
@@ -16,41 +15,71 @@ const db = admin.firestore();
 console.log("✅ Firebase Firestore connected successfully!");
 
 
-// --- 3. [แก้ไข] ตั้งค่า Credentials สำหรับ NETPIE API ---
-// (เราจะใช้ชุดนี้สำหรับโทรหา API โดยตรง)
-const NETPIE_API_KEY = "Y9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; // <-- Key ชุดใหม่จาก cURL
-const NETPIE_API_SECRET = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA";   // <-- Secret ชุดใหม่จาก cURL
+// --- 3. ตั้งค่า Credentials สำหรับ NETPIE API (ใช้ชุดที่ถูกต้อง) ---
+const NETPIE_API_KEY = "Y9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a";
+const NETPIE_API_SECRET = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA";
 
 
-// --- 4. สร้าง Express App และเปิด CORS ---
+// --- 4. [เพิ่มเข้ามา] โรงไฟฟ้าทิพย์ (ฟังก์ชันสร้างข้อมูลปลอม) ---
+function generateFakeDeviceData(deviceId) {
+    let averagePa = 1200, maxPa = 1400, fluctuationRange = 50;
+    if (deviceId === 'air_cond_03') { averagePa = 800; maxPa = 1000; fluctuationRange = 40; }
+    if (deviceId === 'air_cond_04') { averagePa = 400; maxPa = 600; fluctuationRange = 30; }
+
+    const Pa = averagePa + (Math.random() * (fluctuationRange * 2) - fluctuationRange);
+    const Ua = 233 + (Math.random() * 4 - 2);
+    const Hza = 50.0 + (Math.random() * 0.2 - 0.1);
+    const Pfa = 0.9 + (Math.random() * 0.1 - 0.05);
+    const Ia = Pa / (Ua * Pfa);
+    const Sa = Ua * Ia;
+    const Qa = Math.sqrt(Math.pow(Sa, 2) - Math.pow(Pa, 2));
+
+    // ส่งคืนข้อมูลในรูปแบบเดียวกับข้อมูลจริงจาก Shadow
+    return {
+      alias: deviceId,
+      timestamp: new Date().toISOString(),
+      data: {
+        Hza: parseFloat(Hza.toFixed(1)), Ia: parseFloat(Ia.toFixed(3)), Pa: parseFloat(Pa.toFixed(2)),
+        Pfa: parseFloat(Pfa.toFixed(2)), Qa: parseFloat(Qa.toFixed(2)), Sa: parseFloat(Sa.toFixed(2)),
+        Ua: parseFloat(Ua.toFixed(1)), pkWh: parseFloat((Math.random() * 100).toFixed(4)), // สุ่มค่า pkWh ไปก่อน
+      }
+    };
+}
+
+
+// --- 5. สร้าง Express App และเปิด CORS ---
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 
-// --- 5. API Endpoints (เส้นทางต่างๆ) ---
+// --- 6. API Endpoints (เส้นทางต่างๆ) ---
 
-// Endpoint สำหรับดึงข้อมูลล่าสุด (Live Data) จาก NETPIE API โดยตรง
+// [แก้ไข] Endpoint สำหรับดึงข้อมูลล่าสุด (ฉบับผสม)
 app.get("/get-latest-data/:alias", async (req, res) => {
-  try {
-    const { alias } = req.params;
-    
-    // สร้าง Token จาก Key/Secret ชุดใหม่
-    const token = Buffer.from(`${NETPIE_API_KEY}:${NETPIE_API_SECRET}`).toString('base64');
-    
-    // **สำคัญ:** แก้ไข URL ให้ถูกต้องตาม cURL (ไม่มี /data ต่อท้าย)
-    const netpieApiUrl = `https://api.netpie.io/v2/device/shadow/data?alias=${alias}`;
-    
-    console.log(`Forwarding request to NETPIE for alias: ${alias}`);
-    const response = await axios.get(netpieApiUrl, {
-      headers: { 'Authorization': `Basic ${token}` }
-    });
-    
-    console.log(`Successfully fetched data from NETPIE for alias: ${alias}`);
-    res.status(200).json(response.data);
-  } catch (error) {
-    console.error("!!! NETPIE API FORWARDING ERROR !!! in /get-latest-data:", error.response?.data || error.message);
-    res.status(error.response?.status || 500).send(error.response?.data || { message: "Internal server error." });
+  const { alias } = req.params;
+
+  // --- Logic การตัดสินใจ ---
+  if (alias === 'air_cond_01') {
+    // --- ถ้าเป็น air_cond_01 ให้ดึงข้อมูลจริงจาก NETPIE ---
+    try {
+      const token = Buffer.from(`${NETPIE_API_KEY}:${NETPIE_API_SECRET}`).toString('base64');
+      const netpieApiUrl = `https://api.netpie.io/v2/device/shadow/data?alias=${alias}`;
+      console.log(`[REAL DATA] Forwarding request to NETPIE for alias: ${alias}`);
+      const response = await axios.get(netpieApiUrl, { headers: { 'Authorization': `Basic ${token}` } });
+      res.status(200).json(response.data);
+    } catch (error) {
+      console.error(`!!! NETPIE API ERROR for ${alias}:`, error.response?.data || error.message);
+      res.status(error.response?.status || 500).send(error.response?.data || { message: "Internal server error." });
+    }
+  } else if (['air_cond_02', 'air_cond_03', 'air_cond_04'].includes(alias)) {
+    // --- ถ้าเป็น 02, 03, 04 ให้สร้างข้อมูลปลอมจากโรงไฟฟ้าทิพย์ ---
+    console.log(`[FAKE DATA] Generating data for alias: ${alias}`);
+    const fakeData = generateFakeDeviceData(alias);
+    res.status(200).json(fakeData);
+  } else {
+    // --- ถ้าเป็น alias อื่นๆ ที่ไม่รู้จัก ---
+    res.status(404).send({ error: `Alias '${alias}' not found.` });
   }
 });
 
@@ -83,7 +112,7 @@ app.get("/get-historical-data/:alias", async (req, res) => {
 });
 
 
-// --- 6. เริ่มรันเซิร์ฟเวอร์ ---
+// --- 7. เริ่มรันเซิร์ฟเวอร์ ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
