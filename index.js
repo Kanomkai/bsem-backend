@@ -139,6 +139,36 @@ app.get("/check-alias/:alias", async (req, res) => {
     res.status(500).send({ error: "Internal server error." });
   }
 });
+// --- [เพิ่มโค้ดส่วนนี้เข้าไป] Endpoint สำหรับดึงข้อมูลล่าสุด ---
+app.get("/get-latest-data/:alias", async (req, res) => {
+  try {
+    const { alias } = req.params;
+    
+    // ค้นหาข้อมูลล่าสุดโดยเรียงตาม timestamp จากมากไปน้อย (ล่าสุดก่อน) และเอามาแค่ 1 รายการ
+    const snapshot = await db.collection("device_data")
+      .where('alias', '==', alias)
+      .orderBy("timestamp", "desc")
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      // ถ้าไม่เจอข้อมูลเลย ให้ส่ง response ว่างๆ กลับไป
+      return res.status(404).send({ error: 'No data found for this alias.' });
+    }
+
+    // จัดรูปแบบข้อมูล timestamp ให้อยู่ในรูปแบบที่อ่านง่าย (ISO String)
+    const latestData = snapshot.docs[0].data();
+    if (latestData.timestamp && typeof latestData.timestamp.toDate === 'function') {
+        latestData.timestamp = latestData.timestamp.toDate().toISOString();
+    }
+    
+    res.status(200).json(latestData);
+
+  } catch (error) {
+    console.error("!!! INTERNAL SERVER ERROR !!! in /get-latest-data:", error);
+    res.status(500).send({ error: "Internal server error." });
+  }
+});
 app.get("/get-historical-data/:alias", async (req, res) => {
   try {
     const { alias } = req.params;
