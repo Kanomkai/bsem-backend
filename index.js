@@ -52,7 +52,6 @@ client.on("message", async (topic, message) => {
 
     // แค่เช็คว่ามีข้อมูลสำคัญครบหรือไม่ โดยไม่สนว่า alias ชื่ออะไร
     if (alias && dataFromDevice && timestamp) {
-      // บันทึกข้อมูลโดยใช้ `data` เป็นชื่อ field กลางใน Firestore
       await db.collection("device_data").add({ alias, data: dataFromDevice, timestamp: new Date(timestamp) });
       console.log(`💾 [REAL DATA] Saved for [${alias}] to Firestore.`);
     }
@@ -75,7 +74,6 @@ function generateFakeDeviceData(deviceId) {
     const Pfa = 0.9 + (Math.random() * 0.1 - 0.05);
     const Ia = Pa / (Ua * Pfa);
 
-    // สร้างข้อมูลปลอมในรูปแบบเดียวกับข้อมูลจริง (ใช้ datadevice)
     return {
       alias: deviceId,
       timestamp: new Date().toISOString(),
