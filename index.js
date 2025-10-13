@@ -47,9 +47,9 @@ client.on("connect", () => {
 client.on("message", async (topic, message) => {
   try {
     const payload = JSON.parse(message.toString());
-    const { alias, datadevice, timestamp } = payload;
-    if (alias && datadevice && timestamp) {
-      await db.collection("device_data").add({ alias, data: datadevice, timestamp: new Date(timestamp) });
+    const { datadevice, timestamp } = payload;
+    if (datadevice && timestamp) {
+      await db.collection("device_data").add({ data: datadevice, timestamp: new Date(timestamp) });
       console.log(`💾 [Data Pipeline] Successfully saved data for [${alias}] to Firestore.`);
     }
   } catch (error) {
