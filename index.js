@@ -1,77 +1,55 @@
 // --- 1. Import เครื่องมือที่จำเป็น ---
-const admin = require("firebase-admin");
-const mqtt = require("mqtt");
-const express = require("express"); // <--- เอากลับมา
+const express = require("express");
+const cors = require("cors");
+const axios = require("axios");
 
-console.log("▶️ Starting the NETPIE-to-Firebase Data Pipeline...");
+console.log("▶️ Starting the RESTful API Server for NETPIE...");
 
-// --- 2. ตั้งค่าการเชื่อมต่อ Firebase ---
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-if (admin.apps.length === 0) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-}
-const db = admin.firestore();
-console.log("✅ Firebase Firestore connected successfully!");
+// --- 2. [สำคัญ!] ตั้งค่า Credentials สำหรับ NETPIE API ---
+// เราจะใช้ Application Key ชุดที่ "ยืนยันตัวตนผ่าน" แต่ "ไม่ได้รับอนุญาต" (ได้ 403)
+// เพราะนี่คือ Key ที่ถูกต้องสำหรับ Application ของเรา
+const NETPIE_API_KEY = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a";
+const NETPIE_API_SECRET = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA";
 
-
-// --- 3. [สำคัญ!] ตั้งค่า Credentials สำหรับ MQTT ---
-// *** คุณต้องนำ Client ID, Token, Secret ที่สร้างใหม่สำหรับ bsem-backend-server มาใส่ตรงนี้ ***
-const MQTT_CLIENT_ID = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a";
-const MQTT_USERNAME = "jiXFhjE4fgcmFtuYV16nv5Mbhpu9gLTv"; // Token คือ Username
-const MQTT_PASSWORD = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA"; // 
-// ************************************************************************************
-
-const MQTT_BROKER = "broker.netpie.io";
-const MQTT_PORT = 8883;
-const SUBSCRIBE_TOPIC = "@shadow/data/updated";
-
-console.log("▶️ Attempting to connect to NETPIE MQTT Broker...");
-const client = mqtt.connect(`mqtts://${MQTT_BROKER}`, { port: MQTT_PORT, clientId: MQTT_CLIENT_ID, username: MQTT_USERNAME, password: MQTT_PASSWORD });
+// --- 3. สร้าง Express App (เว็บเซิร์ฟเวอร์) ---
+const app = express();
+app.use(cors());
+app.use(express.json());
 
 
-// --- 4. ระบบดักฟังและบันทึกข้อมูล (ทำงานเบื้องหลัง) ---
-client.on("connect", () => {
-  console.log("✅ MQTT Client connected to NETPIE successfully!");
-  client.subscribe(SUBSCRIBE_TOPIC, (err) => {
-    if (!err) {
-      console.log(`👂 Listening for messages on topic: ${SUBSCRIBE_TOPIC}`);
-      console.log("--- The Data Pipeline is now active and waiting for data. ---");
-    } else {
-      console.error("!!! MQTT Subscribe Error:", err);
-    }
-  });
-});
+// --- 4. สร้าง API Endpoint สำหรับให้แอปเรียกใช้ ---
+app.get("/get-latest-data/:alias", async (req, res) => {
+  const { alias } = req.params;
 
-client.on("message", async (topic, message) => {
+  console.log(`[API] Received request for alias: ${alias}`);
+
   try {
-    const payload = JSON.parse(message.toString());
-    const { alias, datadevice, timestamp } = payload;
-    if (alias && datadevice && timestamp) {
-      await db.collection("device_data").add({ alias, data: datadevice, timestamp: new Date(timestamp) });
-      console.log(`💾 [Data Pipeline] Successfully saved data for [${alias}] to Firestore.`);
-    }
+    // สร้าง Token สำหรับยืนยันตัวตนกับ NETPIE
+    const token = Buffer.from(`${NETPIE_API_KEY}:${NETPIE_API_SECRET}`).toString('base64');
+    
+    // กำหนด URL ปลายทางของ NETPIE API
+    const netpieApiUrl = `https://api.netpie.io/v2/device/shadow/data?alias=${alias}`;
+    
+    // สั่งให้เซิร์ฟเวอร์ "โทร" ไปหา NETPIE
+    console.log(`[API] Forwarding request to NETPIE...`);
+    const response = await axios.get(netpieApiUrl, {
+      headers: { 'Authorization': `Basic ${token}` }
+    });
+    
+    // ถ้าสำเร็จ: ส่งข้อมูลที่ได้กลับไปให้แอป
+    console.log(`[SUCCESS] Received data from NETPIE. Sending to client.`);
+    res.status(200).json(response.data);
+
   } catch (error) {
-    console.error("!!! [Data Pipeline] Error processing incoming message:", error);
+    // ถ้าล้มเหลว: ส่ง "คำตอบที่เป็น Error" จาก NETPIE กลับไปให้แอปแบบเป๊ะๆ
+    console.error(`!!! [NETPIE ERROR] NETPIE responded with an error:`, error.response?.data || error.message);
+    res.status(error.response?.status || 500).send(error.response?.data || { message: "Internal server error." });
   }
 });
 
-client.on("error", (error) => {
-  console.error("!!! MQTT Client Error:", error.message);
-});
 
-
-// --- 5. [เพิ่มเข้ามา] สร้าง "หน้าร้านปลอมๆ" เพื่อตอบ Render ---
-const app = express();
+// --- 5. เริ่มรันเซิร์ฟเวอร์ ---
 const PORT = process.env.PORT || 3000;
-
-// สร้างหน้าหลักขึ้นมา 1 หน้า
-app.get("/", (req, res) => {
-  res.status(200).send("NETPIE-to-Firebase Data Pipeline is running.");
-});
-
-// เริ่มเปิดร้าน
 app.listen(PORT, () => {
-  console.log(`🚀 Health check server is running on port ${PORT}`);
+  console.log(`🚀 RESTful API Server is running on port ${PORT}`);
 });
