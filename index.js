@@ -5,10 +5,8 @@ const axios = require("axios");
 
 console.log("▶️ Starting the Simple API Server (Using Device ID)...");
 
-// --- 2. [สำคัญ!] ตั้งค่า Credentials และ Device ID ของคุณ ---
 const NETPIE_API_KEY = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a";
 const NETPIE_API_SECRET = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA";
-// ✅✅✅ เราจะใช้ Device ID โดยตรง ไม่ต้องใช้ Alias อีกแล้ว ✅✅✅
 const TARGET_DEVICE_ID = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a";
 
 // สร้าง Authorization Token เตรียมไว้
@@ -68,7 +66,6 @@ app.get("/reports", async (req, res) => {
     const response = await axios.get(netpieStoreApiUrl, {
         headers: { 'Authorization': `Basic ${NETPIE_AUTH_TOKEN}` },
         params: {
-            // ⚠️ เปลี่ยนจากการใช้ alias: ... มาเป็น id: ...
             id: TARGET_DEVICE_ID,
             start: startDate.getTime(),
             end: endDate.getTime(),
