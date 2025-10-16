@@ -34,37 +34,47 @@ app.use(cors());
 // --- [Endpoint ใหม่!] สำหรับรับ Webhook จาก NETPIE ---
 // --- [Endpoint ใหม่!] สำหรับรับ Webhook จาก NETPIE (เวอร์ชันเก็บประวัติ) ---
 app.post("/netpie-webhook", express.text({ type: '*/*' }), async (req, res) => {
-  try {
-    const shadowData = JSON.parse(req.body);
-    console.log('[Webhook] Received and parsed shadow data:', shadowData);
 
-    if (shadowData) {
-      // --- [ส่วนที่ 1] สร้าง reference ไปยังตำแหน่งต่างๆ ---
+  // --- [LOG 1 - สำคัญที่สุด] ---
+  // พิมพ์ "ข้อความดิบๆ" ที่ได้รับจาก NETPIE ออกมาดูก่อนเลย
+  console.log("--- RAW BODY FROM NETPIE ---");
+  console.log(req.body);
+  console.log("----------------------------");
+
+  try {
+    // พยายามแปลงเป็น JSON (เหมือนเดิม)
+    const shadowData = JSON.parse(req.body);
+
+    // --- [LOG 2] ---
+    console.log("[Parsed Data] The parsed JSON object is:", shadowData);
+
+    // เช็คว่า object ที่ได้มาว่างหรือไม่
+    if (shadowData && Object.keys(shadowData).length > 0) {
+
+      // ... (ส่วนที่เหลือของการบันทึกข้อมูลลง Firebase เหมือนเดิมทุกประการ) ...
       const deviceId = process.env.DEVICE_CLIENT_ID;
       const latestDataRef = db.ref(`devices/${deviceId}/latest_data`);
-      const historyRef = db.ref(`devices/${deviceId}/history`); // <--- ตำแหน่งใหม่สำหรับเก็บประวัติ
+      const historyRef = db.ref(`devices/${deviceId}/history`);
 
-      // --- [ส่วนที่ 2] เพิ่ม timestamp ของ Server เข้าไปในข้อมูล ---
       const dataWithTimestamp = {
         ...shadowData,
-        timestamp: admin.database.ServerValue.TIMESTAMP // <--- เพิ่มเวลาที่บันทึกข้อมูล
+        timestamp: admin.database.ServerValue.TIMESTAMP
       };
 
-      // --- [ส่วนที่ 3] สั่งให้ Firebase ทำงาน 2 อย่างพร้อมกัน ---
       await Promise.all([
-        latestDataRef.set(shadowData),             // 1. เขียนทับข้อมูลล่าสุด (เหมือนเดิม)
-        historyRef.push(dataWithTimestamp)         // 2. เพิ่มข้อมูลใหม่เข้าไปใน history (ทำเพิ่ม)
+        latestDataRef.set(shadowData),
+        historyRef.push(dataWithTimestamp)
       ]);
 
-      console.log('[Firebase] Updated latest data and pushed to history.');
+      console.log(`[Firebase] ✅ SUCCESS! Data saved.`);
       res.status(200).send("OK");
 
     } else {
-      console.log('[Webhook] Received empty data.');
+      console.log('[Result] ⚠️ The parsed data is empty. Nothing to save.');
       res.status(400).send("Received empty data.");
     }
   } catch (error) {
-    console.error(`!!! [Webhook Error]`, error.message);
+    console.error(`!!! [ERROR] 🔴 FAILED to parse or process data:`, error.message);
     res.status(500).send("Internal Server Error");
   }
 });
