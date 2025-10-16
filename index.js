@@ -20,8 +20,7 @@ const NETPIE_API_URL = `https://api.netpie.io/v2/device/shadow/data?alias=${DEVI
 // --- 3. เริ่มการเชื่อมต่อกับ Firebase ---
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL:
-    "https://bsem-5e4c1-default-rtdb.asia-southeast1.firebasediatabase.app",
+  databaseURL: "https://bsem-5e4c1-default-rtdb.asia-southeast1.firebasedatabase.app/" 
 });
 
 const db = admin.database();
@@ -77,7 +76,7 @@ const pollNetpieData = async () => {
 pollNetpieData();
 
 // จากนั้นให้ทำงานซ้ำอีกทุกๆ 1 นาที (60,000 มิลลิวินาที)
-setInterval(pollNetpieData, 10000);
+setInterval(pollNetpieData, 40000);
 
 // --- 6. สร้าง Server พื้นฐานเพื่อให้ Render ทำงานได้ ---
 const app = express();
