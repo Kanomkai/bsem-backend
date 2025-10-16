@@ -31,7 +31,6 @@ app.get("/devices/latest", async (req, res) => {
     
     const response = await axios.get(netpieApiUrl, {
         headers: { 
-            // ✅✅✅ [แก้ไข!] ใช้ Header ที่ถูกต้องตามไฟล์อ้างอิง ✅✅✅
             'Authorization': NETPIE_AUTH_HEADER 
         },
         params: { ids: [DEVICE_CLIENT_ID] }
