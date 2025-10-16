@@ -25,9 +25,7 @@ app.use(express.json());
 app.get("/devices/latest", async (req, res) => {
   console.log(`[API] Request for latest shadow data of [${TARGET_DEVICE_ID}]`);
   try {
-    // ✅✅✅ URL ที่ถูกต้อง คือ /v2/device/shadow ✅✅✅
     const netpieApiUrl = `https://api.netpie.io/v2/device/shadow`;
-
     const response = await axios.get(netpieApiUrl, {
         headers: { 'Authorization': `Basic ${NETPIE_AUTH_TOKEN}` },
         params: { ids: [TARGET_DEVICE_ID] }
@@ -38,7 +36,7 @@ app.get("/devices/latest", async (req, res) => {
     if (deviceData) {
         res.status(200).json(deviceData);
     } else {
-        res.status(404).json({ message: "Device shadow not found on NETPIE. Please ensure the device has sent data at least once." });
+        res.status(404).json({ message: "Device shadow not found on NETPIE." });
     }
   } catch (error) {
     console.error(`!!! [API] NETPIE Shadow GET ERROR:`, error.response?.data || error.message);
@@ -148,7 +146,8 @@ app.get("/", (req, res) => {
 });
 
 // --- 4. เริ่มเปิด Server ---
+// ✅✅✅ [แก้ไข!] ให้ Server ฟัง Port ที่ Render กำหนดมาให้ ✅✅✅
 const PORT = process.env.PORT || 3000;
-app.listen(() => {
+app.listen(PORT, () => {
   console.log(`🚀 API Server is ready on port ${PORT}`);
 });
