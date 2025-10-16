@@ -16,7 +16,7 @@ const NETPIE_AUTH_HEADER = `Device ${DEVICE_CLIENT_ID}:${DEVICE_TOKEN}`;
 // --- 3. เริ่มการเชื่อมต่อกับ Firebase ---
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://bsem-5e4c1-default-rtdb.asia-southeast1.firebasedatabase.app" // URL ของ Realtime Database ของคุณ
+  databaseURL: "https://bsem-5e4c1-default-rtdb.asia-southeast1.firebasedatabase.app/" // URL ของ Realtime Database ของคุณ
 });
 
 // สร้าง reference ไปยังตำแหน่งที่เราจะเก็บข้อมูล
@@ -30,8 +30,6 @@ const app = express();
 app.use(cors());
 
 
-// --- [Endpoint ใหม่!] สำหรับรับ Webhook จาก NETPIE ---
-// --- [Endpoint ใหม่!] สำหรับรับ Webhook จาก NETPIE ---
 // --- [Endpoint ใหม่!] สำหรับรับ Webhook จาก NETPIE (เวอร์ชันเก็บประวัติ) ---
 app.post("/netpie-webhook", express.text({ type: '*/*' }), async (req, res) => {
 
