@@ -3,17 +3,15 @@ const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
 
-console.log("▶️ Starting the Simple API Server (Using Device ID)...");
+console.log("▶️ Starting the Dynamic API Server...");
 
-// --- 2. [สำคัญ!] ตั้งค่า Credentials และ Device ID ของคุณ ---
+// --- 2. [สำคัญ!] ตั้งค่า Credentials ของคุณ ---
+// ลบ TARGET_DEVICE_ID ที่ hardcode ออกไป
 const NETPIE_API_KEY = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a";
 const NETPIE_API_SECRET = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA";
-// ✅✅✅ เราจะใช้ Device ID โดยตรง ไม่ต้องใช้ Alias อีกแล้ว ✅✅✅
-const TARGET_DEVICE_ID = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a";
 
-// สร้าง Authorization Token เตรียมไว้ (ส่วนนี้จำเป็นตามกฎของ NETPIE)
+// สร้าง Authorization Token เตรียมไว้
 const NETPIE_AUTH_TOKEN = Buffer.from(`${NETPIE_API_KEY}:${NETPIE_API_SECRET}`).toString('base64');
-
 
 // --- 3. สร้าง Server และเปิดรับคำสั่งจากเว็บแอป ---
 const app = express();
@@ -21,11 +19,12 @@ app.use(cors());
 app.use(express.json());
 
 
-// Endpoint 1: สำหรับหน้า My Device (ข้อมูลล่าสุด) - ดึงจาก Shadow ด้วย Device ID
-app.get("/devices/latest", async (req, res) => {
-  console.log(`[API] Request for latest data of [${TARGET_DEVICE_ID}]`);
+// --- [แก้ไข] Endpoint 1: สำหรับหน้า My Device (ข้อมูลล่าสุด) ---
+// รับ deviceId จาก URL parameter (เช่น /devices/รหัสอุปกรณ์/latest)
+app.get("/devices/:deviceId/latest", async (req, res) => {
+  const { deviceId } = req.params; // ดึง deviceId จาก URL
+  console.log(`[API] Request for latest data of [${deviceId}]`);
   try {
-    // ⚠️ เปลี่ยนจากการใช้ alias=... มาเป็น id=...
     const netpieApiUrl = `https://api.netpie.io/v2/device/shadow/data?id=${TARGET_DEVICE_ID}`;
     const response = await axios.get(netpieApiUrl, { headers: { 'Authorization': `Basic ${NETPIE_AUTH_TOKEN}` } });
     res.status(200).json(response.data);
