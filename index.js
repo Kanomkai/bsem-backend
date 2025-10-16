@@ -7,7 +7,7 @@ console.log("▶️ Starting the API Server (Corrected NETPIE URL)...");
 
 // --- 2. [สำคัญ!] ตั้งค่า Credentials และ Device ID ของคุณ ---
 const NETPIE_API_KEY = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; // <--- 🔑 ใส่ Client ID ที่ถูกต้อง
-const NETPIE_API_SECRET = "jiXFhjE4fgcmFtuYV16nv5Mbhpu9gLTv"; // <--- 🤫 ใส่ Secret ที่ถูกต้อง
+const NETPIE_API_SECRET = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA"; // <--- 🤫 ใส่ Secret ที่ถูกต้อง
 const TARGET_DEVICE_ID = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; // <--- 🎯 ใส่ Client ID ของอุปกรณ์เป้าหมาย
 
 // สร้าง Authorization Token สำหรับการยืนยันตัวตน
