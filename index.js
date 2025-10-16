@@ -20,7 +20,8 @@ const NETPIE_API_URL = `https://api.netpie.io/v2/device/shadow/data?alias=${DEVI
 // --- 3. เริ่มการเชื่อมต่อกับ Firebase ---
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://bsem-5e4c1-default-rtdb.asia-southeast1.firebasediatabase.app"
+  databaseURL:
+    "https://bsem-5e4c1-default-rtdb.asia-southeast1.firebasediatabase.app",
 });
 
 const db = admin.database();
@@ -37,10 +38,13 @@ const pollNetpieData = async () => {
     // 4.1 ยิง GET request ไปที่ NETPIE API เพื่อขอข้อมูล Shadow
     const response = await axios.get(NETPIE_API_URL, {
       headers: {
-        'Authorization': NETPIE_AUTH_HEADER
-      }
+        Authorization: NETPIE_AUTH_HEADER,
+      },
     });
-
+    console.log(
+      "[DEBUG] Full API Response Body:",
+      JSON.stringify(response.data, null, 2)
+    );
     // 4.2 NETPIE จะส่งข้อมูลกลับมาใน response.data.data.reported
     const reportedData = response.data?.data?.reported;
 
@@ -50,24 +54,26 @@ const pollNetpieData = async () => {
       // 4.3 สร้างข้อมูลสำหรับบันทึกลง History (เพิ่ม Timestamp)
       const dataWithTimestamp = {
         ...reportedData,
-        timestamp: admin.database.ServerValue.TIMESTAMP
+        timestamp: admin.database.ServerValue.TIMESTAMP,
       };
 
       // 4.4 บันทึกข้อมูลลง Firebase ทั้ง 2 ที่
       await Promise.all([
         latestDataRef.set(reportedData),
-        historyRef.push(dataWithTimestamp)
+        historyRef.push(dataWithTimestamp),
       ]);
 
       console.log("[Firebase] 💾 Data saved successfully.");
     } else {
       console.log("[Polling] ⚠️  No 'reported' data found in the response.");
     }
-
   } catch (error) {
     // 4.5 แสดง Error หากการเชื่อมต่อกับ NETPIE ล้มเหลว
     console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    console.error("!!! [ERROR] 🔴 FAILED to fetch data from NETPIE:", error.response?.data || error.message);
+    console.error(
+      "!!! [ERROR] 🔴 FAILED to fetch data from NETPIE:",
+      error.response?.data || error.message
+    );
     console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
   }
 };
@@ -77,7 +83,7 @@ const pollNetpieData = async () => {
 pollNetpieData();
 
 // จากนั้นให้ทำงานซ้ำอีกทุกๆ 1 นาที (60,000 มิลลิวินาที)
-setInterval(pollNetpieData, 60000);
+setInterval(pollNetpieData, 10000);
 
 // --- 6. สร้าง Server พื้นฐานเพื่อให้ Render ทำงานได้ ---
 const app = express();
