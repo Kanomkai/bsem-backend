@@ -12,7 +12,7 @@ const DEVICE_CLIENT_ID = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a";
 // 🤫 DEVICE_TOKEN คือ Token ของอุปกรณ์ (ไม่ใช่ Secret)
 const DEVICE_TOKEN = "jiXFhjE4fgcmFtuYV16nv5Mbhpu9gLTv"; 
 
-// สร้าง Authorization Header ที่ถูกต้อง
+// สร้าง Authorization Header ที่ถูกต้องตามแบบ Device Auth
 const NETPIE_AUTH_HEADER = `Device ${DEVICE_CLIENT_ID}:${DEVICE_TOKEN}`;
 
 // --- 3. สร้าง Server และเปิดรับคำสั่งจากเว็บแอป ---
@@ -31,7 +31,7 @@ app.get("/devices/latest", async (req, res) => {
     
     const response = await axios.get(netpieApiUrl, {
         headers: { 
-            // ✅✅✅ [แก้ไข!] ใช้ Header ที่ถูกต้อง ✅✅✅
+            // ✅✅✅ [แก้ไข!] ใช้ Header ที่ถูกต้องตามไฟล์อ้างอิง ✅✅✅
             'Authorization': NETPIE_AUTH_HEADER 
         },
         params: { ids: [DEVICE_CLIENT_ID] }
