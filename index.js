@@ -3,15 +3,17 @@ const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
 
-console.log("▶️ Starting the API Server (Final Corrected Version)...");
+console.log("▶️ Starting the API Server (Using Correct Auth Method)...");
 
-// --- 2. [สำคัญ!] ตั้งค่า Credentials ที่ถูกต้อง ---
-const NETPIE_API_KEY = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a";
-const NETPIE_API_SECRET = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA";
-const TARGET_DEVICE_ID = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a";
+// --- 2. [สำคัญ!] ตั้งค่า Credentials ที่ถูกต้องตามไฟล์อ้างอิง ---
+// 🔑 DEVICE_CLIENT_ID คือ Client ID ของอุปกรณ์
+const DEVICE_CLIENT_ID = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; 
 
-// สร้าง Authorization Token สำหรับการยืนยันตัวตน
-const NETPIE_AUTH_TOKEN = Buffer.from(`${NETPIE_API_KEY}:${NETPIE_API_SECRET}`).toString('base64');
+// 🤫 DEVICE_TOKEN คือ Token ของอุปกรณ์ (ไม่ใช่ Secret)
+const DEVICE_TOKEN = "jiXFhjE4fgcmFtuYV16nv5Mbhpu9gLTv"; 
+
+// สร้าง Authorization Header ที่ถูกต้อง
+const NETPIE_AUTH_HEADER = `Device ${DEVICE_CLIENT_ID}:${DEVICE_TOKEN}`;
 
 // --- 3. สร้าง Server และเปิดรับคำสั่งจากเว็บแอป ---
 const app = express();
@@ -23,12 +25,16 @@ app.use(express.json());
  * Endpoint 1: ดึงข้อมูลล่าสุดจาก Shadow
  */
 app.get("/devices/latest", async (req, res) => {
-  console.log(`[API] Request for latest shadow data of [${TARGET_DEVICE_ID}]`);
+  console.log(`[API] Request for latest shadow data of [${DEVICE_CLIENT_ID}]`);
   try {
     const netpieApiUrl = `https://api.netpie.io/v2/device/shadow`;
+    
     const response = await axios.get(netpieApiUrl, {
-        headers: { 'Authorization': `Basic ${NETPIE_AUTH_TOKEN}` },
-        params: { ids: [TARGET_DEVICE_ID] }
+        headers: { 
+            // ✅✅✅ [แก้ไข!] ใช้ Header ที่ถูกต้อง ✅✅✅
+            'Authorization': NETPIE_AUTH_HEADER 
+        },
+        params: { ids: [DEVICE_CLIENT_ID] }
     });
 
     const deviceData = response.data && response.data.length > 0 ? response.data[0] : null;
@@ -51,13 +57,15 @@ app.get("/devices/historical", async (req, res) => {
   const { start, end } = req.query;
   if (!start || !end) return res.status(400).json({ message: "start and end query parameters are required." });
 
-  console.log(`[API] Request for historical data of [${TARGET_DEVICE_ID}]`);
+  console.log(`[API] Request for historical data of [${DEVICE_CLIENT_ID}]`);
   try {
     const netpieStoreApiUrl = `https://api.netpie.io/v2/feed/datastore/query`;
     const response = await axios.get(netpieStoreApiUrl, {
-        headers: { 'Authorization': `Basic ${NETPIE_AUTH_TOKEN}` },
+        headers: { 
+            'Authorization': NETPIE_AUTH_HEADER 
+        },
         params: {
-            topic: `@private/+/+/${TARGET_DEVICE_ID}/shadow/data/updated`,
+            topic: `@private/+/+/${DEVICE_CLIENT_ID}/shadow/data/updated`, 
             from: new Date(start).getTime(),
             to: new Date(end).getTime(),
             limit: 1000
@@ -86,7 +94,7 @@ app.get("/devices/reports", async (req, res) => {
     const { period } = req.query;
     if (!period) return res.status(400).json({ message: "period query parameter is required." });
 
-    console.log(`[API] Request for report data of [${TARGET_DEVICE_ID}] for period [${period}]`);
+    console.log(`[API] Request for report data of [${DEVICE_CLIENT_ID}] for period [${period}]`);
     try {
         const now = new Date();
         let startDate;
@@ -101,12 +109,14 @@ app.get("/devices/reports", async (req, res) => {
         } else {
             return res.status(400).json({ message: 'Invalid period.' });
         }
-
+        
         const netpieStoreApiUrl = `https://api.netpie.io/v2/feed/datastore/query`;
         const response = await axios.get(netpieStoreApiUrl, {
-            headers: { 'Authorization': `Basic ${NETPIE_AUTH_TOKEN}` },
+            headers: { 
+                'Authorization': NETPIE_AUTH_HEADER 
+            },
             params: {
-                topic: `@private/+/+/${TARGET_DEVICE_ID}/shadow/data/updated`,
+                topic: `@private/+/+/${DEVICE_CLIENT_ID}/shadow/data/updated`,
                 from: startDate.getTime(), to: endDate.getTime(), limit: 50000
             }
         });
@@ -146,7 +156,6 @@ app.get("/", (req, res) => {
 });
 
 // --- 4. เริ่มเปิด Server ---
-// ✅✅✅ [แก้ไข!] ให้ Server ฟัง Port ที่ Render กำหนดมาให้ ✅✅✅
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 API Server is ready on port ${PORT}`);
