@@ -11,11 +11,11 @@ const NETPIE_API_SECRET = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA";
 // ✅✅✅ เราจะใช้ Device ID โดยตรง ไม่ต้องใช้ Alias อีกแล้ว ✅✅✅
 const TARGET_DEVICE_ID = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a";
 
-// สร้าง Authorization Token เตรียมไว้
+// สร้าง Authorization Token เตรียมไว้ (ส่วนนี้จำเป็นตามกฎของ NETPIE)
 const NETPIE_AUTH_TOKEN = Buffer.from(`${NETPIE_API_KEY}:${NETPIE_API_SECRET}`).toString('base64');
 
 
-// --- 3. สร้าง Server และเปิดรับคำสั่งจากแอป Flutter ---
+// --- 3. สร้าง Server และเปิดรับคำสั่งจากเว็บแอป ---
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -72,34 +72,41 @@ app.get("/reports", async (req, res) => {
             id: TARGET_DEVICE_ID,
             start: startDate.getTime(),
             end: endDate.getTime(),
-            limit: 50000
+            limit: 50000 // ดึงข้อมูลให้ได้มากที่สุดเท่าที่ NETPIE จะให้ได้
         }
     });
 
     const rawData = response.data;
-    if (rawData.length === 0) {
+    if (!rawData || rawData.length === 0) {
         return res.status(200).json([]);
     }
 
+    // ประมวลผลข้อมูลดิบเพื่อสรุปยอดรายวัน
     const dailySummary = {};
     rawData.forEach(record => {
-        const recordData = JSON.parse(record.data).data;
-        const recordDate = new Date(record.ts);
-        const dayKey = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}-${String(recordDate.getDate()).padStart(2, '0')}`;
-        if (!dailySummary[dayKey]) {
-            dailySummary[dayKey] = { min_pkWh: Infinity, max_pkWh: -Infinity };
-        }
-        if (recordData && typeof recordData.pkWh === 'number') {
-            if (recordData.pkWh < dailySummary[dayKey].min_pkWh) dailySummary[dayKey].min_pkWh = recordData.pkWh;
-            if (recordData.pkWh > dailySummary[dayKey].max_pkWh) dailySummary[dayKey].max_pkWh = recordData.pkWh;
+        try {
+            const recordData = JSON.parse(record.data).data;
+            const recordDate = new Date(record.ts);
+            const dayKey = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}-${String(recordDate.getDate()).padStart(2, '0')}`;
+            
+            if (!dailySummary[dayKey]) {
+                dailySummary[dayKey] = { min_pkWh: Infinity, max_pkWh: -Infinity };
+            }
+            if (recordData && typeof recordData.pkWh === 'number') {
+                if (recordData.pkWh < dailySummary[dayKey].min_pkWh) dailySummary[dayKey].min_pkWh = recordData.pkWh;
+                if (recordData.pkWh > dailySummary[dayKey].max_pkWh) dailySummary[dayKey].max_pkWh = recordData.pkWh;
+            }
+        } catch(e) {
+            // ข้ามข้อมูลที่อาจจะมี format ผิดพลาด
         }
     });
 
+    // คำนวณผลลัพธ์สุดท้าย
     const reportData = Object.keys(dailySummary).map(dayKey => {
         const summary = dailySummary[dayKey];
-        const kwhUsed = (summary.max_pkWh === -Infinity) ? 0 : (summary.max_pkWh - summary.min_pkWh);
-        const co2 = kwhUsed * 0.5;
-        const cost = kwhUsed * 4.0;
+        const kwhUsed = (summary.max_pkWh === -Infinity || summary.min_pkWh === Infinity) ? 0 : (summary.max_pkWh - summary.min_pkWh);
+        const co2 = kwhUsed * 0.5; // สมมติ 1 kWh = 0.5 kgCO2e
+        const cost = kwhUsed * 4.0; // สมมติค่าไฟหน่วยละ 4 บาท
         return {
             date: dayKey,
             kwh: kwhUsed.toFixed(2).toString(),
@@ -108,6 +115,7 @@ app.get("/reports", async (req, res) => {
         };
     });
 
+    // เรียงข้อมูลจากวันล่าสุดไปเก่า
     res.status(200).json(reportData.sort((a, b) => b.date.localeCompare(a.date)));
 
   } catch (error) {
@@ -116,10 +124,12 @@ app.get("/reports", async (req, res) => {
   }
 });
 
+// Endpoint สำหรับเช็คว่า Server ทำงานอยู่
 app.get("/", (req, res) => {
   res.status(200).send("API Server (Using Device ID) is running.");
 });
 
+// --- 4. เริ่มเปิด Server ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 API Server is ready on port ${PORT}`);
