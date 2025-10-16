@@ -3,11 +3,11 @@ const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
 
-console.log("▶️ Starting the API Server (Read Shadow & History)...");
+console.log("▶️ Starting the API Server (Corrected NETPIE URL)...");
 
 // --- 2. [สำคัญ!] ตั้งค่า Credentials และ Device ID ของคุณ ---
 const NETPIE_API_KEY = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; // <--- 🔑 ใส่ Client ID ที่ถูกต้อง
-const NETPIE_API_SECRET = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA"; // <--- 🤫 ใส่ Secret ที่ถูกต้อง
+const NETPIE_API_SECRET = "jiXFhjE4fgcmFtuYV16nv5Mbhpu9gLTv"; // <--- 🤫 ใส่ Secret ที่ถูกต้อง
 const TARGET_DEVICE_ID = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; // <--- 🎯 ใส่ Client ID ของอุปกรณ์เป้าหมาย
 
 // สร้าง Authorization Token สำหรับการยืนยันตัวตน
@@ -20,13 +20,14 @@ app.use(express.json());
 
 
 /**
- * Endpoint 1: ดึงข้อมูลล่าสุดจาก Shadow มาโชว์
- * หน้าที่: ตอบสนองความต้องการ "ดึงข้อมูลจาก shadow มาโชว์"
+ * Endpoint 1: ดึงข้อมูลล่าสุดจาก Shadow
  */
 app.get("/devices/latest", async (req, res) => {
   console.log(`[API] Request for latest shadow data of [${TARGET_DEVICE_ID}]`);
   try {
+    // ✅✅✅ [แก้ไข!] ใช้ URL ที่ถูกต้อง คือ /v2/device/shadow ✅✅✅
     const netpieApiUrl = `https://api.netpie.io/v2/device/shadow`;
+    
     const response = await axios.get(netpieApiUrl, {
         headers: { 'Authorization': `Basic ${NETPIE_AUTH_TOKEN}` },
         params: { ids: [TARGET_DEVICE_ID] }
@@ -46,8 +47,7 @@ app.get("/devices/latest", async (req, res) => {
 });
 
 /**
- * Endpoint 2: ดึงข้อมูลย้อนหลังของ Shadow สำหรับทำกราฟ
- * หน้าที่: ตอบสนองความต้องการ "ขอดูข้อมูลย้อนหลังของ shadow"
+ * Endpoint 2: ดึงข้อมูลย้อนหลังสำหรับกราฟ
  */
 app.get("/devices/historical", async (req, res) => {
   const { start, end } = req.query;
@@ -55,7 +55,6 @@ app.get("/devices/historical", async (req, res) => {
 
   console.log(`[API] Request for historical data of [${TARGET_DEVICE_ID}]`);
   try {
-    // API นี้จะไปค้นประวัติการอัปเดต Shadow ทั้งหมดที่ถูกเก็บไว้
     const netpieStoreApiUrl = `https://api.netpie.io/v2/feed/datastore/query`;
     const response = await axios.get(netpieStoreApiUrl, {
         headers: { 'Authorization': `Basic ${NETPIE_AUTH_TOKEN}` },
@@ -83,8 +82,7 @@ app.get("/devices/historical", async (req, res) => {
 });
 
 /**
- * Endpoint 3: ดึงข้อมูลย้อนหลังของ Shadow สำหรับทำ Report
- * หน้าที่: ตอบสนองความต้องการ "ขอดูข้อมูลย้อนหลังของ shadow" (ในรูปแบบสรุป)
+ * Endpoint 3: ดึงข้อมูลย้อนหลังสำหรับ Report
  */
 app.get("/devices/reports", async (req, res) => {
     const { period } = req.query;
@@ -109,7 +107,6 @@ app.get("/devices/reports", async (req, res) => {
             return res.status(400).json({ message: 'Invalid period.' });
         }
         
-        // API นี้ก็คือการไปค้นประวัติ Shadow เช่นกัน แต่ใช้ช่วงเวลาที่ต่างออกไป
         const netpieStoreApiUrl = `https://api.netpie.io/v2/feed/datastore/query`;
         const response = await axios.get(netpieStoreApiUrl, {
             headers: { 'Authorization': `Basic ${NETPIE_AUTH_TOKEN}` },
