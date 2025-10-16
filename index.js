@@ -1,3 +1,24 @@
+// --- 1. Import เครื่องมือที่จำเป็น ---
+const express = require("express");
+const cors = require("cors");
+const admin = require("firebase-admin");
+
+// อ่านค่า Service Account จาก Environment Variable
+const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
+
+// --- 3. เริ่มการเชื่อมต่อกับ Firebase ---
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://bsem-5e4c1-default-rtdb.asia-southeast1.firebasedatabase.app"
+});
+
+const db = admin.database();
+console.log("▶️ Starting Firebase Bridge Server...");
+
+// --- 4. สร้าง Server ---
+const app = express(); // <--- 🚨 THIS LINE WAS MISSING!
+app.use(cors());
+
 // --- [ใส่โค้ดนี้แทนที่ app.post ของเดิมทั้งหมด] ---
 app.post("/netpie-webhook", express.text({ type: '*/*' }), async (req, res) => {
   console.log("========================================");
@@ -56,4 +77,15 @@ app.post("/netpie-webhook", express.text({ type: '*/*' }), async (req, res) => {
     console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
     res.status(500).send("Internal Server Error");
   }
+});
+
+// Endpoint สำหรับเช็คว่า Server ทำงานอยู่
+app.get("/", (req, res) => {
+  res.status(200).send("Firebase Bridge Server is running.");
+});
+
+// --- 5. เริ่มเปิด Server ---
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 API Server is ready on port ${PORT}`);
 });
