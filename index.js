@@ -3,12 +3,17 @@ const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
 
-console.log("▶️ Starting the API Server (Corrected NETPIE URL)...");
+console.log("▶️ Starting the API Server (Final Corrected Version)...");
 
 // --- 2. [สำคัญ!] ตั้งค่า Credentials และ Device ID ของคุณ ---
-const NETPIE_API_KEY = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; // <--- 🔑 ใส่ Client ID ที่ถูกต้อง
-const NETPIE_API_SECRET = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA"; // <--- 🤫 ใส่ Secret ที่ถูกต้อง
-const TARGET_DEVICE_ID = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; // <--- 🎯 ใส่ Client ID ของอุปกรณ์เป้าหมาย
+// 🔑 NETPIE_API_KEY คือ Client ID ของอุปกรณ์
+const NETPIE_API_KEY = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; 
+
+// 🤫 NETPIE_API_SECRET คือ Secret ของอุปกรณ์ (ไม่ใช่ Token)
+const NETPIE_API_SECRET = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA"; 
+
+// 🎯 TARGET_DEVICE_ID คือ Client ID ของอุปกรณ์ (ตัวเดียวกับ API_KEY)
+const TARGET_DEVICE_ID = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; 
 
 // สร้าง Authorization Token สำหรับการยืนยันตัวตน
 const NETPIE_AUTH_TOKEN = Buffer.from(`${NETPIE_API_KEY}:${NETPIE_API_SECRET}`).toString('base64');
@@ -95,14 +100,11 @@ app.get("/devices/reports", async (req, res) => {
         const endDate = new Date(now);
 
         if (period === 'last7days') {
-            startDate = new Date(now);
-            startDate.setDate(now.getDate() - 6);
-            startDate.setHours(0, 0, 0, 0);
+            startDate = new Date(now); startDate.setDate(now.getDate() - 6); startDate.setHours(0, 0, 0, 0);
         } else if (period === 'thisMonth') {
             startDate = new Date(now.getFullYear(), now.getMonth(), 1);
         } else if (period === 'lastMonth') {
-            startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            endDate.setDate(0);
+            startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1); endDate.setDate(0);
         } else {
             return res.status(400).json({ message: 'Invalid period.' });
         }
@@ -112,50 +114,38 @@ app.get("/devices/reports", async (req, res) => {
             headers: { 'Authorization': `Basic ${NETPIE_AUTH_TOKEN}` },
             params: {
                 topic: `@private/+/+/${TARGET_DEVICE_ID}/shadow/data/updated`,
-                from: startDate.getTime(),
-                to: endDate.getTime(),
-                limit: 50000
+                from: startDate.getTime(), to: endDate.getTime(), limit: 50000
             }
         });
 
         const rawData = response.data.data;
         if (!rawData || rawData.length === 0) return res.status(200).json([]);
-
         const dailySummary = {};
         rawData.forEach(record => {
             try {
-                const recordTimestamp = record[0];
-                const recordData = JSON.parse(record[1]).data;
+                const recordTimestamp = record[0]; const recordData = JSON.parse(record[1]).data;
                 const recordDate = new Date(recordTimestamp);
                 const dayKey = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}-${String(recordDate.getDate()).padStart(2, '0')}`;
-                
-                if (!dailySummary[dayKey]) {
-                    dailySummary[dayKey] = { min_pkWh: Infinity, max_pkWh: -Infinity };
-                }
+                if (!dailySummary[dayKey]) dailySummary[dayKey] = { min_pkWh: Infinity, max_pkWh: -Infinity };
                 if (recordData && typeof recordData.pkWh === 'number') {
                     if (recordData.pkWh < dailySummary[dayKey].min_pkWh) dailySummary[dayKey].min_pkWh = recordData.pkWh;
                     if (recordData.pkWh > dailySummary[dayKey].max_pkWh) dailySummary[dayKey].max_pkWh = recordData.pkWh;
                 }
             } catch(e) {}
         });
-
         const reportData = Object.keys(dailySummary).map(dayKey => {
             const summary = dailySummary[dayKey];
             const kwhUsed = (summary.max_pkWh === -Infinity || summary.min_pkWh === Infinity) ? 0 : (summary.max_pkWh - summary.min_pkWh);
-            const co2 = kwhUsed * 0.5;
-            const cost = kwhUsed * 4.0;
-            return {
-                date: dayKey, kwh: kwhUsed.toFixed(2).toString(),
-                co2: co2.toFixed(2).toString(), cost: cost.toFixed(2).toString()
-            };
+            const co2 = kwhUsed * 0.5; const cost = kwhUsed * 4.0;
+            return { date: dayKey, kwh: kwhUsed.toFixed(2).toString(), co2: co2.toFixed(2).toString(), cost: cost.toFixed(2).toString() };
         });
-        
         res.status(200).json(reportData.sort((a, b) => b.date.localeCompare(a.date)));
     } catch (error) {
         console.error(`!!! [API] NETPIE Data Store ERROR:`, error.response?.data || error.message);
         res.status(error.response?.status || 500).send(error.response?.data || { message: "Internal server error." });
     }
 });
+
 
 // Endpoint สำหรับเช็คว่า Server ทำงานอยู่
 app.get("/", (req, res) => {
