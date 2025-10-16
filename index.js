@@ -5,14 +5,9 @@ const axios = require("axios");
 
 console.log("▶️ Starting the API Server (Final Corrected Version)...");
 
-// --- 2. [สำคัญ!] ตั้งค่า Credentials และ Device ID ของคุณ ---
-// 🔑 NETPIE_API_KEY คือ Client ID ของอุปกรณ์
+// --- 2. [สำคัญ!] ตั้งค่า Credentials ที่ถูกต้อง ---
 const NETPIE_API_KEY = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; 
-
-// 🤫 NETPIE_API_SECRET คือ Secret ของอุปกรณ์ (ไม่ใช่ Token)
 const NETPIE_API_SECRET = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA"; 
-
-// 🎯 TARGET_DEVICE_ID คือ Client ID ของอุปกรณ์ (ตัวเดียวกับ API_KEY)
 const TARGET_DEVICE_ID = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; 
 
 // สร้าง Authorization Token สำหรับการยืนยันตัวตน
@@ -30,7 +25,7 @@ app.use(express.json());
 app.get("/devices/latest", async (req, res) => {
   console.log(`[API] Request for latest shadow data of [${TARGET_DEVICE_ID}]`);
   try {
-    // ✅✅✅ [แก้ไข!] ใช้ URL ที่ถูกต้อง คือ /v2/device/shadow ✅✅✅
+    // ✅✅✅ URL ที่ถูกต้อง คือ /v2/device/shadow ✅✅✅
     const netpieApiUrl = `https://api.netpie.io/v2/device/shadow`;
     
     const response = await axios.get(netpieApiUrl, {
