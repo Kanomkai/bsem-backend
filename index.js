@@ -6,9 +6,9 @@ const axios = require("axios");
 console.log("▶️ Starting the API Server (Final Corrected Version)...");
 
 // --- 2. [สำคัญ!] ตั้งค่า Credentials ที่ถูกต้อง ---
-const NETPIE_API_KEY = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; 
-const NETPIE_API_SECRET = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA"; 
-const TARGET_DEVICE_ID = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; 
+const NETPIE_API_KEY = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a";
+const NETPIE_API_SECRET = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA";
+const TARGET_DEVICE_ID = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a";
 
 // สร้าง Authorization Token สำหรับการยืนยันตัวตน
 const NETPIE_AUTH_TOKEN = Buffer.from(`${NETPIE_API_KEY}:${NETPIE_API_SECRET}`).toString('base64');
@@ -27,7 +27,7 @@ app.get("/devices/latest", async (req, res) => {
   try {
     // ✅✅✅ URL ที่ถูกต้อง คือ /v2/device/shadow ✅✅✅
     const netpieApiUrl = `https://api.netpie.io/v2/device/shadow`;
-    
+
     const response = await axios.get(netpieApiUrl, {
         headers: { 'Authorization': `Basic ${NETPIE_AUTH_TOKEN}` },
         params: { ids: [TARGET_DEVICE_ID] }
@@ -59,7 +59,7 @@ app.get("/devices/historical", async (req, res) => {
     const response = await axios.get(netpieStoreApiUrl, {
         headers: { 'Authorization': `Basic ${NETPIE_AUTH_TOKEN}` },
         params: {
-            topic: `@private/+/+/${TARGET_DEVICE_ID}/shadow/data/updated`, 
+            topic: `@private/+/+/${TARGET_DEVICE_ID}/shadow/data/updated`,
             from: new Date(start).getTime(),
             to: new Date(end).getTime(),
             limit: 1000
@@ -103,7 +103,7 @@ app.get("/devices/reports", async (req, res) => {
         } else {
             return res.status(400).json({ message: 'Invalid period.' });
         }
-        
+
         const netpieStoreApiUrl = `https://api.netpie.io/v2/feed/datastore/query`;
         const response = await axios.get(netpieStoreApiUrl, {
             headers: { 'Authorization': `Basic ${NETPIE_AUTH_TOKEN}` },
@@ -149,6 +149,6 @@ app.get("/", (req, res) => {
 
 // --- 4. เริ่มเปิด Server ---
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(() => {
   console.log(`🚀 API Server is ready on port ${PORT}`);
 });
