@@ -3,15 +3,17 @@ const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
 
-console.log("▶️ Starting the API Server (Fixed Device ID)...");
+console.log("▶️ Starting the API Server (NETPIE2020 Fixed Device ID)...");
 
-// --- 2. [สำคัญ!] ตั้งค่า Credentials และ Device ID ที่คุณต้องการเจาะจง ---
-const NETPIE_API_KEY = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a";
-const NETPIE_API_SECRET = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA";
-// ✅✅✅ กำหนด Device ID ที่ต้องการใช้งานตายตัวที่นี่ ✅✅✅
-const TARGET_DEVICE_ID = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; // <--- ใส่ Device ID ที่คุณต้องการ
+// --- 2. [สำคัญ!] ตั้งค่า Credentials และ Device ID ของคุณ ---
+// 🔑 ให้ใช้ Key และ Secret ที่ถูกต้องจาก NETPIE2020 Dashboard ของคุณ
+const NETPIE_API_KEY = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; // <--- 🔑 ใส่ Client ID ที่ถูกต้อง
+const NETPIE_API_SECRET = "cJWyfo4EKij9AHzjtu3gJFYUKTiq1feA"; // <--- 🤫 ใส่ Secret ที่ถูกต้อง
 
-// สร้าง Authorization Token เตรียมไว้
+// 🎯 ID ของอุปกรณ์เป้าหมาย
+const TARGET_DEVICE_ID = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; 
+
+// สร้าง Authorization Token สำหรับการยืนยันตัวตน
 const NETPIE_AUTH_TOKEN = Buffer.from(`${NETPIE_API_KEY}:${NETPIE_API_SECRET}`).toString('base64');
 
 // --- 3. สร้าง Server และเปิดรับคำสั่งจากเว็บแอป ---
@@ -20,13 +22,29 @@ app.use(cors());
 app.use(express.json());
 
 
-// --- [แก้ไข] Endpoint 1: สำหรับข้อมูลล่าสุด (ไม่ต้องรับ deviceId) ---
+// --- [อัปเดต] Endpoint 1: สำหรับข้อมูลล่าสุด (ดึงจาก Shadow) ---
 app.get("/devices/latest", async (req, res) => {
-  console.log(`[API] Request for latest data of [${TARGET_DEVICE_ID}]`);
+  console.log(`[API] Request for latest shadow data of [${TARGET_DEVICE_ID}]`);
   try {
-    const netpieApiUrl = `https://api.netpie.io/v2/device/shadow/data?id=${TARGET_DEVICE_ID}`;
-    const response = await axios.get(netpieApiUrl, { headers: { 'Authorization': `Basic ${NETPIE_AUTH_TOKEN}` } });
-    res.status(200).json(response.data);
+    // ✅✅✅ URL ที่ถูกต้องสำหรับ NETPIE2020 Shadow API ✅✅✅
+    const netpieApiUrl = `https://api.netpie.io/v2/device/shadow`;
+    const response = await axios.get(netpieApiUrl, {
+        headers: { 'Authorization': `Basic ${NETPIE_AUTH_TOKEN}` },
+        params: {
+            // ส่ง Device ID เป็น Array ตามสเปคใหม่
+            ids: [TARGET_DEVICE_ID] 
+        }
+    });
+
+    // NETPIE2020 จะ return ข้อมูลเป็น Array, เราจึงต้องดึงตัวแรกออกมา
+    const deviceData = response.data && response.data.length > 0 ? response.data[0] : null;
+
+    if (deviceData) {
+        res.status(200).json(deviceData); // ส่งข้อมูลของอุปกรณ์ตัวนั้นกลับไป
+    } else {
+        res.status(404).json({ message: "Device shadow not found." });
+    }
+
   } catch (error) {
     console.error(`!!! [API] NETPIE Shadow ERROR:`, error.response?.data || error.message);
     res.status(error.response?.status || 500).send(error.response?.data || { message: "Internal server error." });
@@ -34,9 +52,9 @@ app.get("/devices/latest", async (req, res) => {
 });
 
 
-// --- [แก้ไข] Endpoint 2: สำหรับกราฟ (ไม่ต้องรับ deviceId) ---
+// --- [อัปเดต] Endpoint 2: สำหรับกราฟ (ดึงจาก Data Store) ---
 app.get("/devices/historical", async (req, res) => {
-  const { start, end } = req.query; // รับแค่ start/end time
+  const { start, end } = req.query;
 
   if (!start || !end) {
     return res.status(400).json({ message: "start and end query parameters are required." });
@@ -45,22 +63,29 @@ app.get("/devices/historical", async (req, res) => {
   console.log(`[API] Request for historical data of [${TARGET_DEVICE_ID}]`);
 
   try {
-    const netpieStoreApiUrl = `https://api.netpie.io/v2/store/data/query`;
+    // ✅✅✅ URL ที่ถูกต้องสำหรับ NETPIE2020 Data Store API ✅✅✅
+    const netpieStoreApiUrl = `https://api.netpie.io/v2/feed/datastore/query`;
     const response = await axios.get(netpieStoreApiUrl, {
         headers: { 'Authorization': `Basic ${NETPIE_AUTH_TOKEN}` },
         params: {
-            id: TARGET_DEVICE_ID, // ใช้ค่าที่กำหนดไว้
-            start: new Date(start).getTime(),
-            end: new Date(end).getTime(),
+            // ส่ง Device ID ใน Topic รูปแบบเฉพาะของ NETPIE2020
+            topic: `@private/+/+/${TARGET_DEVICE_ID}/shadow/data/updated`, 
+            from: new Date(start).getTime(),
+            to: new Date(end).getTime(),
             limit: 1000
         }
     });
 
-    const formattedData = response.data.map(record => {
+    // NETPIE2020 จะส่งข้อมูลดิบมาในรูปแบบที่ต่างจากเดิม
+    const rawData = response.data.data;
+    const formattedData = rawData.map(record => {
         try {
-            const parsedData = JSON.parse(record.data);
+            // ข้อมูลจริงจะอยู่ใน record[1] ซึ่งเป็น JSON string
+            const parsedData = JSON.parse(record[1]);
             return {
-                timestamp: new Date(record.ts).toISOString(),
+                // เวลาอยู่ใน record[0] เป็น millisecond
+                timestamp: new Date(record[0]).toISOString(),
+                // ดึงค่า Pa จาก data.Pa
                 Pa: parsedData.data?.Pa || 0
             };
         } catch(e) { return null; }
@@ -69,13 +94,13 @@ app.get("/devices/historical", async (req, res) => {
     res.status(200).json(formattedData.sort((a, b) => a.timestamp.localeCompare(b.timestamp)));
 
   } catch (error) {
-    console.error(`!!! [API] NETPIE Store ERROR:`, error.response?.data || error.message);
+    console.error(`!!! [API] NETPIE Data Store ERROR:`, error.response?.data || error.message);
     res.status(error.response?.status || 500).send(error.response?.data || { message: "Internal server error." });
   }
 });
 
 
-// --- [แก้ไข] Endpoint 3: สำหรับ Report (ไม่ต้องรับ deviceId) ---
+// --- [อัปเดต] Endpoint 3: สำหรับ Report (ดึงจาก Data Store) ---
 app.get("/devices/reports", async (req, res) => {
     const { period } = req.query;
     if (!period) {
@@ -102,18 +127,19 @@ app.get("/devices/reports", async (req, res) => {
             return res.status(400).json({ message: 'Invalid period.' });
         }
 
-        const netpieStoreApiUrl = `https://api.netpie.io/v2/store/data/query`;
+        // ✅✅✅ ใช้ URL ที่ถูกต้องสำหรับ NETPIE2020 Data Store API ✅✅✅
+        const netpieStoreApiUrl = `https://api.netpie.io/v2/feed/datastore/query`;
         const response = await axios.get(netpieStoreApiUrl, {
             headers: { 'Authorization': `Basic ${NETPIE_AUTH_TOKEN}` },
             params: {
-                id: TARGET_DEVICE_ID, // ใช้ค่าที่กำหนดไว้
-                start: startDate.getTime(),
-                end: endDate.getTime(),
+                topic: `@private/+/+/${TARGET_DEVICE_ID}/shadow/data/updated`,
+                from: startDate.getTime(),
+                to: endDate.getTime(),
                 limit: 50000
             }
         });
 
-        const rawData = response.data;
+        const rawData = response.data.data;
         if (!rawData || rawData.length === 0) {
             return res.status(200).json([]);
         }
@@ -121,8 +147,9 @@ app.get("/devices/reports", async (req, res) => {
         const dailySummary = {};
         rawData.forEach(record => {
             try {
-                const recordData = JSON.parse(record.data).data;
-                const recordDate = new Date(record.ts);
+                const recordTimestamp = record[0];
+                const recordData = JSON.parse(record[1]).data;
+                const recordDate = new Date(recordTimestamp);
                 const dayKey = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}-${String(recordDate.getDate()).padStart(2, '0')}`;
                 
                 if (!dailySummary[dayKey]) {
@@ -151,7 +178,7 @@ app.get("/devices/reports", async (req, res) => {
         res.status(200).json(reportData.sort((a, b) => b.date.localeCompare(a.date)));
 
     } catch (error) {
-        console.error(`!!! [API] NETPIE Store ERROR:`, error.response?.data || error.message);
+        console.error(`!!! [API] NETPIE Data Store ERROR:`, error.response?.data || error.message);
         res.status(error.response?.status || 500).send(error.response?.data || { message: "Internal server error." });
     }
 });
@@ -159,7 +186,7 @@ app.get("/devices/reports", async (req, res) => {
 
 // Endpoint สำหรับเช็คว่า Server ทำงานอยู่
 app.get("/", (req, res) => {
-  res.status(200).send("API Server (Fixed Device ID) is running.");
+  res.status(200).send("API Server (NETPIE2020 Fixed Device ID) is running.");
 });
 
 // --- 4. เริ่มเปิด Server ---
