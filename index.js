@@ -76,7 +76,7 @@ const pollNetpieData = async () => {
 pollNetpieData();
 
 // จากนั้นให้ทำงานซ้ำอีกทุกๆ 1 นาที (60,000 มิลลิวินาที)
-setInterval(pollNetpieData, 40000);
+setInterval(pollNetpieData, 60000);
 
 // --- 6. สร้าง Server พื้นฐานเพื่อให้ Render ทำงานได้ ---
 const app = express();
