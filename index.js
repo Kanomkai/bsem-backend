@@ -28,35 +28,43 @@ console.log("▶️ Starting Firebase Bridge Server...");
 // --- 4. สร้าง Server ---
 const app = express();
 app.use(cors());
-app.use(express.json({ extended: true }));
 
 
 // --- [Endpoint ใหม่!] สำหรับรับ Webhook จาก NETPIE ---
-app.post("/netpie-webhook", async (req, res) => {
-  console.log('[Webhook] Received data from NETPIE:', req.body);
-  
+// --- [Endpoint ใหม่!] สำหรับรับ Webhook จาก NETPIE ---
+// --- [Endpoint ใหม่!] สำหรับรับ Webhook จาก NETPIE (เวอร์ชันเก็บประวัติ) ---
+app.post("/netpie-webhook", express.text({ type: '*/*' }), async (req, res) => {
   try {
-    // 1. ไปดึงข้อมูล Shadow ตัวเต็มจาก NETPIE API
-    const netpieApiUrl = `https://api.netpie.io/v2/device/shadow`;
-    const response = await axios.get(netpieApiUrl, {
-        headers: { 'Authorization': NETPIE_AUTH_HEADER },
-        params: { ids: [DEVICE_CLIENT_ID] }
-    });
+    const shadowData = JSON.parse(req.body);
+    console.log('[Webhook] Received and parsed shadow data:', shadowData);
 
-    const deviceData = response.data && response.data.length > 0 ? response.data[0] : null;
+    if (shadowData) {
+      // --- [ส่วนที่ 1] สร้าง reference ไปยังตำแหน่งต่างๆ ---
+      const deviceId = process.env.DEVICE_CLIENT_ID;
+      const latestDataRef = db.ref(`devices/${deviceId}/latest_data`);
+      const historyRef = db.ref(`devices/${deviceId}/history`); // <--- ตำแหน่งใหม่สำหรับเก็บประวัติ
 
-    if (deviceData && deviceData.data) {
-      // 2. นำข้อมูลที่ได้ไปเขียนทับใน Firebase Realtime Database
-      await deviceDataRef.set(deviceData.data);
-      console.log('[Firebase] Successfully wrote data to Realtime Database.');
+      // --- [ส่วนที่ 2] เพิ่ม timestamp ของ Server เข้าไปในข้อมูล ---
+      const dataWithTimestamp = {
+        ...shadowData,
+        timestamp: admin.database.ServerValue.TIMESTAMP // <--- เพิ่มเวลาที่บันทึกข้อมูล
+      };
+
+      // --- [ส่วนที่ 3] สั่งให้ Firebase ทำงาน 2 อย่างพร้อมกัน ---
+      await Promise.all([
+        latestDataRef.set(shadowData),             // 1. เขียนทับข้อมูลล่าสุด (เหมือนเดิม)
+        historyRef.push(dataWithTimestamp)         // 2. เพิ่มข้อมูลใหม่เข้าไปใน history (ทำเพิ่ม)
+      ]);
+
+      console.log('[Firebase] Updated latest data and pushed to history.');
       res.status(200).send("OK");
-    } else {
-      console.log('[Webhook] No shadow data found to update.');
-      res.status(404).send("Shadow data not found.");
-    }
 
+    } else {
+      console.log('[Webhook] Received empty data.');
+      res.status(400).send("Received empty data.");
+    }
   } catch (error) {
-    console.error(`!!! [Webhook Error]`, error.response?.data || error.message);
+    console.error(`!!! [Webhook Error]`, error.message);
     res.status(500).send("Internal Server Error");
   }
 });
