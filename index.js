@@ -4,9 +4,9 @@ const cors = require("cors");
 const axios = require("axios");
 const admin = require("firebase-admin");
 
-// --- 2. [สำคัญ!] ตั้งค่า Credentials ทั้งหมด ---
-// กุญแจสำหรับเชื่อมต่อ Firebase (ไฟล์ที่คุณเพิ่งโหลดมา)
-const serviceAccount = require("./serviceAccountKey.json");
+
+// อ่านค่า Service Account จาก Environment Variable
+const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
 
 // Credentials สำหรับ NETPIE (ใช้ Client ID และ Token)
 const DEVICE_CLIENT_ID = "9585c7e4-97d7-4c50-b2f1-ea5fc1125e8a"; 
