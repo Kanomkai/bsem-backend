@@ -35,46 +35,40 @@ const pollNetpieData = async () => {
   console.log(`[Polling] ⏱️  Attempting to fetch data from NETPIE...`);
 
   try {
-    // 4.1 ยิง GET request ไปที่ NETPIE API เพื่อขอข้อมูล Shadow
     const response = await axios.get(NETPIE_API_URL, {
       headers: {
-        Authorization: NETPIE_AUTH_HEADER,
-      },
+        'Authorization': NETPIE_AUTH_HEADER
+      }
     });
-    console.log(
-      "[DEBUG] Full API Response Body:",
-      JSON.stringify(response.data, null, 2)
-    );
-    // 4.2 NETPIE จะส่งข้อมูลกลับมาใน response.data.data.reported
-    const reportedData = response.data?.data?.reported;
+
+    // --- [DEBUG] เรายังเก็บ Log นี้ไว้ดูได้ ---
+    console.log("[DEBUG] Full API Response Body:", JSON.stringify(response.data, null, 2));
+
+    // --- [แก้ไขแล้ว!] เข้าถึงข้อมูลที่ถูกต้อง ---
+    const reportedData = response.data?.data;
 
     if (reportedData && Object.keys(reportedData).length > 0) {
       console.log("[Polling] ✅ SUCCESS! Data received:", reportedData);
 
-      // 4.3 สร้างข้อมูลสำหรับบันทึกลง History (เพิ่ม Timestamp)
       const dataWithTimestamp = {
         ...reportedData,
-        timestamp: admin.database.ServerValue.TIMESTAMP,
+        timestamp: admin.database.ServerValue.TIMESTAMP
       };
 
-      // 4.4 บันทึกข้อมูลลง Firebase ทั้ง 2 ที่
       await Promise.all([
         latestDataRef.set(reportedData),
-        historyRef.push(dataWithTimestamp),
+        historyRef.push(dataWithTimestamp)
       ]);
 
+      // --- Log ที่เราอยากเห็นที่สุด! ---
       console.log("[Firebase] 💾 Data saved successfully.");
+
     } else {
-      console.log("[Polling] ⚠️  No 'reported' data found in the response.");
+      console.log("[Polling] ⚠️  No 'data' object found in the response.");
     }
+
   } catch (error) {
-    // 4.5 แสดง Error หากการเชื่อมต่อกับ NETPIE ล้มเหลว
-    console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    console.error(
-      "!!! [ERROR] 🔴 FAILED to fetch data from NETPIE:",
-      error.response?.data || error.message
-    );
-    console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    console.error("!!! [ERROR] 🔴 FAILED to fetch data from NETPIE:", error.response?.data || error.message);
   }
 };
 
